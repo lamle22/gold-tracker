@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Biểu đồ Giá Vàng</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h2>Biểu đồ giá vàng sơn hà</h2>
+  <canvas id="goldChart" width="800" height="400"></canvas>
+  <script>
+    async function fetchData() {
+      const response = await fetch('gold_prices.csv');
+      const data = await response.text();
+      const rows = data.trim().split('\n');
+      const labels = [], mua = [], ban = [];
+
+      rows.forEach(row => {
+        const [time, buy, sell] = row.split(',');
+        labels.push(new Date(time).toLocaleString());
+        mua.push(+buy);
+        ban.push(+sell);
+      });
+
+      const ctx = document.getElementById('goldChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Giá mua', data: mua, borderColor: 'green', fill: false },
+            { label: 'Giá bán', data: ban, borderColor: 'red', fill: false }
+          ]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: 'Thời gian' } },
+            y: { title: { display: true, text: 'Giá (VND)' } }
+          }
+        }
+      });
+    }
+
+    fetchData();
+  </script>
+</body>
+</html>
