@@ -1,15 +1,15 @@
 version: "3.8"
 services:
   backend:
-    build: /home/user/gold-tracker/backend
+    build: ./backend
     volumes:
-      - /home/user/gold-tracker/data:/app/data
+      - ./data:/data
     restart: always
 
   frontend:
-    build: /home/user/gold-tracker/frontend
+    build: ./frontend
     ports:
       - "8180:80"
     volumes:
-      - /home/user/gold-tracker/data:/usr/share/nginx/html
+      - ./data:/usr/share/nginx/html
     restart: always
