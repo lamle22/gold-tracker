@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  backend:
+    build: ./backend
+    volumes:
+      - ./data:/data
+    restart: always
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8180:80"
+    volumes:
+      - ./data:/usr/share/nginx/html
+    restart: always
