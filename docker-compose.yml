@@ -1,9 +1,21 @@
 version: "3.8"
 services:
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gold_tracker
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
   backend:
     build: ./backend
-    volumes:
-      - ./backend/gold_prices.db:/app/gold_prices.db
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/gold_tracker
     ports:
       - "5000:5000"
     restart: always
@@ -15,3 +27,6 @@ services:
     ports:
       - "8180:80"
     restart: always
+
+volumes:
+  pgdata:
