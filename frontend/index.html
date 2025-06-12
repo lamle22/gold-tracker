@@ -1,31 +1,92 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Gold Price Chart</title>
+  <title>Biểu đồ giá vàng</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h1 {
+      text-align: center;
+    }
+    #goldChart {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+  </style>
 </head>
 <body>
   <h1>Biểu đồ giá vàng</h1>
-  <canvas id="goldChart"></canvas>
+  <canvas id="goldChart" height="100"></canvas>
+
   <script>
     fetch('/prices')
       .then(r => r.json())
       .then(data => {
-        const labels = data.map(d => new Date(d.time).toLocaleString());
+        const labels = data.map(d => new Date(d.time).toLocaleString('vi-VN'));
         const buys = data.map(d => d.buy);
         const sells = data.map(d => d.sell);
+
         new Chart(document.getElementById('goldChart'), {
           type: 'line',
           data: {
-            labels,
+            labels: labels,
             datasets: [
-              { label: 'Mua vào', data: buys, borderColor: 'green', fill: false },
-              { label: 'Bán ra', data: sells, borderColor: 'red', fill: false }
+              {
+                label: 'Giá mua vào',
+                data: buys,
+                borderColor: 'green',
+                backgroundColor: 'rgba(0,128,0,0.1)',
+                tension: 0.3,
+                fill: true
+              },
+              {
+                label: 'Giá bán ra',
+                data: sells,
+                borderColor: 'red',
+                backgroundColor: 'rgba(255,0,0,0.1)',
+                tension: 0.3,
+                fill: true
+              }
             ]
           },
-          options: { scales: { x: { display: true }, y: { display: true } } }
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'top',
+              },
+              title: {
+                display: true,
+                text: 'Giá vàng theo thời gian'
+              }
+            },
+            scales: {
+              x: {
+                display: true,
+                title: {
+                  display: true,
+                  text: 'Thời gian'
+                }
+              },
+              y: {
+                display: true,
+                title: {
+                  display: true,
+                  text: 'Giá (VNĐ)'
+                }
+              }
+            }
+          }
         });
+      })
+      .catch(err => {
+        console.error("Lỗi khi tải dữ liệu:", err);
+        alert("Không thể tải dữ liệu từ máy chủ.");
       });
   </script>
 </body>
