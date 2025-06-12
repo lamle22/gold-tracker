@@ -2,38 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Gold Prices</title>
-  <style>
-    body { font-family: Arial; margin: 2rem; }
-    table { border-collapse: collapse; width: 50%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background-color: #f2f2f2; }
-  </style>
+  <title>Gold Price Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <h1>Gold Prices</h1>
-  <table id="prices-table">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Date</th>
-        <th>Price (VNĐ)</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
+  <h1>Biểu đồ giá vàng</h1>
+  <canvas id="goldChart"></canvas>
   <script>
-    fetch("http://backend:5000/prices")
-      .then(response => response.json())
+    fetch('/prices')
+      .then(r => r.json())
       .then(data => {
-        const tbody = document.querySelector("#prices-table tbody");
-        data.forEach(([id, date, price]) => {
-          const row = `<tr><td>${id}</td><td>${date}</td><td>${price.toLocaleString()}</td></tr>`;
-          tbody.innerHTML += row;
+        const labels = data.map(d => new Date(d.time).toLocaleString());
+        const buys = data.map(d => d.buy);
+        const sells = data.map(d => d.sell);
+        new Chart(document.getElementById('goldChart'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Mua vào', data: buys, borderColor: 'green', fill: false },
+              { label: 'Bán ra', data: sells, borderColor: 'red', fill: false }
+            ]
+          },
+          options: { scales: { x: { display: true }, y: { display: true } } }
         });
-      })
-      .catch(error => console.error("Error fetching data:", error));
+      });
   </script>
 </body>
 </html>
