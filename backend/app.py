@@ -1,58 +1,29 @@
-import requests
-import re
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
-from datetime import datetime
+from psycopg2.extras import RealDictCursor
 
-# Kết nối PostgreSQL
-conn = psycopg2.connect(
-    host="localhost",  # hoặc 'db' nếu dùng Docker
-    database="gold_db",
-    user="postgres",
-    password="postgres"
+app = FastAPI()
+
+# Cho phép frontend gọi API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-cur = conn.cursor()
 
-# Lấy HTML từ trang web
-url = "https://sinhdien.com.vn/gia-vang-ajax-34255318"
-res = requests.get(url)
-html = res.text
-
-# Lấy thời gian cập nhật
-match_time = re.search(r'Cập nhật lúc: ([\d: ]+\d{2}/\d{2}/\d{4})', html)
-if match_time:
-    updated_at = datetime.strptime(match_time.group(1), "%H:%M %d/%m/%Y")
-else:
-    updated_at = datetime.now()
-
-# Danh sách loại vàng
-items = {
-    "Nhẫn tròn 999": None,
-    "Nhẫn vỉ 999,9": None,
-    "Vàng 18K": None,
-    "Vàng 610": None,
-    "Vàng 14K": None,
-    "Vàng 10K": None,
-    "Bạc": None,
-    "Thần tài": None
-}
-
-for name in items.keys():
-    pattern = fr'<tr><td>{re.escape(name)}</td><td>([\d,]+)</td><td>([\d,]+)</td></tr>'
-    match = re.search(pattern, html)
-    if match:
-        buy = float(match.group(1).replace(',', ''))
-        sell = float(match.group(2).replace(',', ''))
-        items[name] = (buy, sell)
-        
-        # Ghi vào DB
-        cur.execute(
-            "INSERT INTO gold_prices (name, buy_price, sell_price, updated_at) VALUES (%s, %s, %s, %s)",
-            (name, buy, sell, updated_at)
-        )
-        print(f"{name} - Mua vào: {buy} | Bán ra: {sell}")
-    else:
-        print(f"Không tìm thấy {name}")
-
-conn.commit()
-cur.close()
-conn.close()
+@app.get("/prices")
+def get_prices():
+    conn = psycopg2.connect(
+        host="db",         # ← nếu chạy trong docker
+        database="gold_db",
+        user="postgres",
+        password="postgres"
+    )
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT name, buy_price as buy, sell_price as sell, updated_at as time FROM gold_prices ORDER BY updated_at DESC LIMIT 100")
+    results = cur.fetchall()
+    cur.close()
+    conn.close()
+    return results
