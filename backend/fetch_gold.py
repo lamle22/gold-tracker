@@ -1,38 +1,42 @@
-import requests
-import csv
-from datetime import datetime
-from bs4 import BeautifulSoup
+from flask import Flask, request, jsonify
+import psycopg2
+import os
 
-CSV_FILE = "/data/gold_prices.csv"
-URL = "https://sinhdien.com.vn/gia-vang-ajax-34255318"
+app = Flask(__name__)
 
-def fetch_data():
-    try:
-        response = requests.get(URL)
-        soup = BeautifulSoup(response.text, "html.parser")
+# Kết nối DB từ biến môi trường
+conn = psycopg2.connect(
+    host=os.environ['DB_HOST'],
+    database=os.environ['DB_NAME'],
+    user=os.environ['DB_USER'],
+    password=os.environ['DB_PASSWORD'],
+    port=os.environ['DB_PORT']
+)
+cur = conn.cursor()
 
-        rows = soup.find_all("tr")
-        for row in rows:
-            cells = row.find_all("td")
-            if len(cells) >= 3:
-                try:
-                    gia_mua = int(cells[1].text.strip().replace('.', '').replace(',', ''))
-                    gia_ban = int(cells[2].text.strip().replace('.', '').replace(',', ''))
-                    break
-                except ValueError:
-                    continue
-        else:
-            print("Không tìm thấy dữ liệu phù hợp.")
-            return
+# Tạo bảng nếu chưa có
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS gold_prices (
+        id SERIAL PRIMARY KEY,
+        date DATE,
+        price NUMERIC
+    )
+""")
+conn.commit()
 
-        timestamp = datetime.now().isoformat()
+@app.route("/add", methods=["POST"])
+def add_price():
+    data = request.json
+    cur.execute("INSERT INTO gold_prices (date, price) VALUES (%s, %s)",
+                (data["date"], data["price"]))
+    conn.commit()
+    return jsonify({"status": "success"}), 201
 
-        with open(CSV_FILE, mode="a", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerow([timestamp, gia_mua, gia_ban])
-        print(f"✔ Dữ liệu đã lưu: {timestamp}, {gia_mua}, {gia_ban}")
-    except Exception as e:
-        print(f"❌ Lỗi: {e}")
+@app.route("/prices", methods=["GET"])
+def get_prices():
+    cur.execute("SELECT * FROM gold_prices")
+    rows = cur.fetchall()
+    return jsonify(rows)
 
 if __name__ == "__main__":
-    fetch_data()
+    app.run(host="0.0.0.0", port=5000)
