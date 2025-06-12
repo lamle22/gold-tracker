@@ -1,12 +1,11 @@
-FROM python:3.10-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
-COPY fetch_gold.py .
-COPY cronjob /etc/cron.d/fetch-cron
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-RUN pip install requests beautifulsoup4 && \
-    chmod 0644 /etc/cron.d/fetch-cron && \
-    crontab /etc/cron.d/fetch-cron
+COPY . .
+COPY ./data/gold_prices.csv /data/gold_prices.csv  # 👈 Dòng này là quan trọng
 
-CMD ["cron", "-f"]
+CMD ["python", "app.py"]
