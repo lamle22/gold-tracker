@@ -1,59 +1,58 @@
-import requests, sqlite3
-from flask import Flask, jsonify
-from flask_cors import CORS
+import requests
+import re
+import psycopg2
 from datetime import datetime
-from apscheduler.schedulers.background import BackgroundScheduler
 
-app = Flask(__name__)
-CORS(app)
-DB_FILE = 'gold_prices.db'
+# Kết nối PostgreSQL
+conn = psycopg2.connect(
+    host="localhost",  # hoặc 'db' nếu dùng Docker
+    database="gold_db",
+    user="postgres",
+    password="postgres"
+)
+cur = conn.cursor()
 
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS gold_prices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            buy_price REAL,
-            sell_price REAL
-        );
-    ''')
-    conn.commit()
-    conn.close()
+# Lấy HTML từ trang web
+url = "https://sinhdien.com.vn/gia-vang-ajax-34255318"
+res = requests.get(url)
+html = res.text
 
-def update_data():
-    url = "https://sinhdien.com.vn/gia-vang-ajax-34255318"
-    try:
-        res = requests.get(url)
-        res.raise_for_status()
-        rows = res.json().get('rows', [])
-        now = datetime.now().isoformat()
-        conn = sqlite3.connect(DB_FILE)
-        cur = conn.cursor()
-        for row in rows:
-            buy = float(row[1].replace(',', '').replace('.', ''))
-            sell = float(row[2].replace(',', '').replace('.', ''))
-            cur.execute("INSERT INTO gold_prices(timestamp,buy_price,sell_price) VALUES (?, ?, ?)",
-                        (now, buy, sell))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print("Error fetching:", e)
+# Lấy thời gian cập nhật
+match_time = re.search(r'Cập nhật lúc: ([\d: ]+\d{2}/\d{2}/\d{4})', html)
+if match_time:
+    updated_at = datetime.strptime(match_time.group(1), "%H:%M %d/%m/%Y")
+else:
+    updated_at = datetime.now()
 
-@app.route('/prices')
-def get_prices():
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
-    cur.execute("SELECT timestamp, buy_price, sell_price FROM gold_prices ORDER BY timestamp")
-    result = cur.fetchall()
-    conn.close()
-    return jsonify([
-        {"time": ts, "buy": bp, "sell": sp} for ts, bp, sp in result
-    ])
+# Danh sách loại vàng
+items = {
+    "Nhẫn tròn 999": None,
+    "Nhẫn vỉ 999,9": None,
+    "Vàng 18K": None,
+    "Vàng 610": None,
+    "Vàng 14K": None,
+    "Vàng 10K": None,
+    "Bạc": None,
+    "Thần tài": None
+}
 
-if __name__ == "__main__":
-    init_db()
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(update_data, 'interval', minutes=30)
-    scheduler.start()
-    app.run(host='0.0.0.0', port=5000)
+for name in items.keys():
+    pattern = fr'<tr><td>{re.escape(name)}</td><td>([\d,]+)</td><td>([\d,]+)</td></tr>'
+    match = re.search(pattern, html)
+    if match:
+        buy = float(match.group(1).replace(',', ''))
+        sell = float(match.group(2).replace(',', ''))
+        items[name] = (buy, sell)
+        
+        # Ghi vào DB
+        cur.execute(
+            "INSERT INTO gold_prices (name, buy_price, sell_price, updated_at) VALUES (%s, %s, %s, %s)",
+            (name, buy, sell, updated_at)
+        )
+        print(f"{name} - Mua vào: {buy} | Bán ra: {sell}")
+    else:
+        print(f"Không tìm thấy {name}")
+
+conn.commit()
+cur.close()
+conn.close()
