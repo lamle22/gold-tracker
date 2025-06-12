@@ -1,11 +1,11 @@
 version: "3.8"
 services:
   db:
-    image: postgres:14
+    image: postgres:15
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gold_tracker
+      POSTGRES_DB: gold_db
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: always
@@ -14,8 +14,6 @@ services:
     build: ./backend
     depends_on:
       - db
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/gold_tracker
     ports:
       - "5000:5000"
     restart: always
