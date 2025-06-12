@@ -1,13 +1,33 @@
 version: "3.8"
+
 services:
+  db:
+    image: postgres:14
+    restart: always
+    environment:
+      POSTGRES_USER: golduser
+      POSTGRES_PASSWORD: goldpass
+      POSTGRES_DB: goldprices
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
   backend:
     build: ./backend
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: goldprices
+      DB_USER: golduser
+      DB_PASSWORD: goldpass
     restart: always
 
   frontend:
     build: ./frontend
     ports:
       - "8180:80"
-    volumes:
-      - ./data:/usr/share/nginx/html
     restart: always
+
+volumes:
+  db_data:
