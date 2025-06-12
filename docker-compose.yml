@@ -2,8 +2,6 @@ version: "3.8"
 services:
   backend:
     build: ./backend
-    volumes:
-      - ./data:/data
     restart: always
 
   frontend:
