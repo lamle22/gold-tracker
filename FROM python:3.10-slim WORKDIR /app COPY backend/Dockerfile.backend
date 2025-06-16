@@ -1,0 +1,7 @@
+FROM python:3.10-slim
+WORKDIR /app
+COPY backend/ .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Chạy FastAPI và script lấy giá vàng song song
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port 8000 & while true; do python fetch_gold.py; sleep 1800; done"]
