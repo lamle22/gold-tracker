@@ -1,4 +1,4 @@
-fetch("http://localhost:8000/csv")
+fetch("http://localhost:8020/csv")
   .then(res => res.text())
   .then(csv => {
     const rows = csv.trim().split("\n").map(row => row.split(","));
