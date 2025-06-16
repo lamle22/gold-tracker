@@ -1,29 +1,57 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import requests
+import re
+import csv
+import os
 
-app = FastAPI()
+url = "https://sinhdien.com.vn/gia-vang-ajax-34255318"
+res = requests.get(url)
+html = res.text
 
-# Cho phép frontend gọi API
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Danh sách loại vàng
+loai_vang = [
+    "Nhẫn tròn 999",
+    "Nhẫn vỉ 999,9",
+    "Vàng 18K",
+    "Vàng 610",
+    "Vàng 14K",
+    "Vàng 10K",
+    "Bạc",
+    "Thần tài"
+]
 
-@app.get("/prices")
-def get_prices():
-    conn = psycopg2.connect(
-        host="db",         # ← nếu chạy trong docker
-        database="gold_db",
-        user="postgres",
-        password="postgres"
-    )
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT name, buy_price as buy, sell_price as sell, updated_at as time FROM gold_prices ORDER BY updated_at DESC LIMIT 100")
-    results = cur.fetchall()
-    cur.close()
-    conn.close()
-    return results
+# Dữ liệu
+data = []
+
+# Lấy thời gian cập nhật
+match_time = re.search(r'Cập nhật lúc: ([\d: ]+\d{2}/\d{2}/\d{4})', html)
+thoigian = match_time.group(1) if match_time else "Không rõ"
+data.append(thoigian)
+
+# Kiểm tra trùng lặp với dòng cuối
+filename = "gia_vang.csv"
+if os.path.exists(filename):
+    with open(filename, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+        if lines:
+            last_line = lines[-1].strip()
+            if last_line.startswith(thoigian):
+                print(f"Dữ liệu với thời gian '{thoigian}' đã tồn tại.")
+                exit()
+
+# Tiếp tục lấy dữ liệu vàng nếu không trùng
+for ten in loai_vang:
+    ten_escaped = re.escape(ten)
+    match = re.search(rf'<tr><td>{ten_escaped}</td><td>([\d,]+)</td><td>([\d,]+)</td></tr>', html)
+    if match:
+        mua = match.group(1)
+        ban = match.group(2)
+    else:
+        mua = ban = "Không tìm thấy"
+    data.extend([mua, ban])
+
+# Ghi vào CSV
+with open(filename, mode="a", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    writer.writerow(data)
+
+print(f"Đã cập nhật dữ liệu mới {filename}")
